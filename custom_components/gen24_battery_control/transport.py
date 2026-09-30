@@ -8,9 +8,9 @@ import inspect
 from pymodbus.client import AsyncModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
+from .errors import TransportError, WriteRejected
 
-class TransportError(Exception):
-    """Communication with the inverter failed."""
+__all__ = ["ModbusTcpTransport", "TransportError", "WriteRejected"]
 
 
 class ModbusTcpTransport:
@@ -53,7 +53,7 @@ class ModbusTcpTransport:
             except (ModbusException, OSError, TimeoutError) as err:
                 raise TransportError(str(err)) from err
             if result.isError():
-                raise TransportError(f"write {address}={value} failed: {result}")
+                raise WriteRejected(f"write {address}={value} rejected: {result}")
 
     def close(self) -> None:
         """Close the connection."""

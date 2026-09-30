@@ -10,6 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
+from .errors import WriteRejected
 from .registers import (
     MODEL_COMMON,
     MODEL_END,
@@ -139,7 +140,12 @@ class StorageController:
                 writes = plan_writes(state.setpoints, target, self._base, keepalive=keepalive)
                 for address, value in writes:
                     _LOGGER.debug("write %s = %s", address, value)
-                    await self._transport.write(address, value)
+                    try:
+                        await self._transport.write(address, value)
+                    except WriteRejected as err:
+                        # Stop this attempt; the read-back below decides what happened
+                        _LOGGER.warning("Attempt %s/%s: %s", attempt, self._attempts, err)
+                        break
                 if writes and self._verify_delay:
                     await asyncio.sleep(self._verify_delay)
                 state = await self._read()

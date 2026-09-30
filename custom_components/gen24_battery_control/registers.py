@@ -112,14 +112,9 @@ class Setpoints:
     grid_charging: int  # ChaGriSet, 0 = PV only, 1 = grid allowed
 
     def validate(self) -> None:
-        """Raise InvalidSetpoints if the inverter would reject these values."""
+        """Raise InvalidSetpoints for values outside the register ranges."""
         if self.control_mode not in tuple(ControlMode):
             raise InvalidSetpoints(f"invalid control mode {self.control_mode}")
-        if not rates_valid(self.discharge_rate, self.charge_rate):
-            raise InvalidSetpoints(
-                "charge and discharge rate must not both be 0 "
-                "(rejected by the Gen24 firmware)"
-            )
         for name in ("discharge_rate", "charge_rate"):
             from_int16(getattr(self, name))
         for name in ("min_reserve", "revert_timeout"):
@@ -129,9 +124,14 @@ class Setpoints:
             raise InvalidSetpoints("grid_charging must be 0 or 1")
 
 
-def rates_valid(discharge_rate: int, charge_rate: int) -> bool:
-    """The Gen24 rejects any write that leaves both rates at 0."""
-    return not (discharge_rate == 0 and charge_rate == 0)
+def is_zero_zero(discharge_rate: int, charge_rate: int) -> bool:
+    """Both rates at 0.
+
+    Some firmware reportedly rejects writes that produce this state
+    (callifo/fronius_modbus#126). A Symo GEN24 10.0 with firmware 1.41.11-1
+    accepts it, so it is allowed as a target but avoided as an intermediate.
+    """
+    return discharge_rate == 0 and charge_rate == 0
 
 
 @dataclass(frozen=True)
@@ -209,8 +209,8 @@ def plan_writes(
     * The revert timeout is written first so the watchdog is armed before
       any limit becomes active.
     * The rates are written in the order that never produces the
-      intermediate state discharge=0 / charge=0 (the firmware rejects it,
-      see callifo/fronius_modbus#126).
+      intermediate state discharge=0 / charge=0 unless it is the target
+      (see is_zero_zero).
     * Entering a limiting mode: rates before StorCtl_Mod, so the mode never
       activates with stale rates. Returning to AUTO: StorCtl_Mod first.
     * keepalive rewrites the rates even if unchanged, which restarts the
@@ -248,7 +248,7 @@ def _plan_rates(
 
     if dis_changed and chg_changed:
         # Intermediate state after the first write: (new discharge, old charge)
-        if rates_valid(target.discharge_rate, current.charge_rate):
+        if not is_zero_zero(target.discharge_rate, current.charge_rate):
             return [dis, chg]
         return [chg, dis]
     if dis_changed:

@@ -8,10 +8,14 @@ wird) bleiben in Home Assistant, in Automationen und Templates.
 
 ## Was sie anders macht
 
-- **Sichere Schreibreihenfolge.** Die Gen24-Firmware lehnt jeden Schreibvorgang
-  ab, der Lade- *und* Entladerate gleichzeitig auf 0 % setzt. Die Integration
-  wählt die Reihenfolge so, dass dieser Zwischenzustand nie entsteht
-  (vgl. [callifo/fronius_modbus#126](https://github.com/callifo/fronius_modbus/issues/126)).
+- **Sichere Schreibreihenfolge.** Laut
+  [callifo/fronius_modbus#126](https://github.com/callifo/fronius_modbus/issues/126)
+  lehnt manche Firmware einen Schreibvorgang ab, der Lade- *und* Entladerate
+  gleichzeitig auf 0 % setzt. Die Integration wählt die Reihenfolge so, dass
+  dieser Zustand nie als Zwischenschritt entsteht. Als Ziel ist 0 %/0 % erlaubt:
+  Ein Symo GEN24 10.0 mit Firmware 1.41.11-1 nimmt ihn an und hält ihn.
+  Lehnt ein Gerät ihn ab, meldet die Integration das als „Sollwerte nicht
+  übernommen“.
 - **Prüfung statt Annahme.** Nach jedem Schreiben wird der Block zurückgelesen.
   Übernimmt der Wechselrichter die Werte nicht, wird wiederholt, eine Reparatur-
   meldung erzeugt und `binary_sensor.…_sollwerte_nicht_ubernommen` eingeschaltet
@@ -107,8 +111,7 @@ data:
   charge_power_limit: 0
 ```
 
-Achtung: `discharge_limit: 0` zusammen mit `charge_limit: 0` wird abgelehnt.
-Soll die Batterie ruhen, genügt ein kleiner Wert, z. B. `discharge_limit: 1`.
+Soll die Batterie ruhen, setze `discharge_limit: 0` und `charge_limit: 0`.
 
 ## Entwicklung
 

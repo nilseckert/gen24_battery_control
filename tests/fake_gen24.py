@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from g24.errors import WriteRejected
 from g24.registers import INWRTE, OUTWRTE, to_int16
 
 BASE = 40345
@@ -13,12 +14,12 @@ SNAPSHOT = [
 ]  # fmt: skip
 
 
-class RejectedWrite(Exception):
-    """Simulates ExceptionResponse(3)."""
-
-
 class FakeGen24:
-    """Holds registers; rejects writes that leave both rates at 0."""
+    """Holds registers.
+
+    reject_zero_zero simulates firmware that answers a write leaving both
+    rates at 0 with ExceptionResponse(3) (callifo/fronius_modbus#126).
+    """
 
     def __init__(self, storage: list[int] | None = None) -> None:
         self.regs: dict[int, int] = {}
@@ -38,6 +39,8 @@ class FakeGen24:
         self._put(BASE + 24, [0xFFFF, 0])
         self.writes: list[tuple[int, int]] = []
         self.ignore_writes_to: set[int] = set()
+        self.reject_zero_zero = False
+        self.reject_exc: type[Exception] = WriteRejected
 
     def _put(self, address: int, values: list[int]) -> None:
         for i, value in enumerate(values):
@@ -52,6 +55,10 @@ class FakeGen24:
             return
         after = dict(self.regs)
         after[address] = value
-        if to_int16(after[BASE + OUTWRTE]) == 0 and to_int16(after[BASE + INWRTE]) == 0:
-            raise RejectedWrite(address)
+        if (
+            self.reject_zero_zero
+            and to_int16(after[BASE + OUTWRTE]) == 0
+            and to_int16(after[BASE + INWRTE]) == 0
+        ):
+            raise self.reject_exc(f"write {address}={value} rejected: ExceptionResponse(3)")
         self.regs = after

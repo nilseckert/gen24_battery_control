@@ -18,6 +18,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 # Import before the hass fixture mounts its own config dir as custom_components
 import custom_components.gen24_battery_control.config_flow  # noqa: F401
+from custom_components.gen24_battery_control.errors import WriteRejected
 
 DOMAIN = "gen24_battery_control"
 PKG = "custom_components.gen24_battery_control"
@@ -114,15 +115,30 @@ async def test_service_swaps_rates_in_safe_order(hass: HomeAssistant, device) ->
     assert hass.states.get(eid(hass, "sensor", "active_charge_rate")).state == "100.0"
 
 
-async def test_zero_zero_rejected(hass: HomeAssistant, device) -> None:
+async def test_zero_zero_accepted(hass: HomeAssistant, device) -> None:
     await setup(hass)
-    with pytest.raises(ServiceValidationError):
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": eid(hass, "number", "discharge_limit"), "value": 0},
+        blocking=True,
+    )
+    assert (device.regs[BASE + OUTWRTE], device.regs[BASE + INWRTE]) == (0, 0)
+    assert hass.states.get(eid(hass, "binary_sensor", "setpoints_not_applied")).state == "off"
+
+
+async def test_zero_zero_rejected_by_firmware(hass: HomeAssistant, device) -> None:
+    entry = await setup(hass)
+    device.reject_zero_zero = True
+    device.reject_exc = WriteRejected
+    with pytest.raises(HomeAssistantError, match="did not accept"):
         await hass.services.async_call(
             "number", "set_value",
             {"entity_id": eid(hass, "number", "discharge_limit"), "value": 0},
             blocking=True,
         )
-    assert device.writes == []
+    assert device.regs[BASE + OUTWRTE] == 10000
+    assert hass.states.get(eid(hass, "binary_sensor", "setpoints_not_applied")).state == "on"
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"setpoints_not_applied_{entry.entry_id}")
 
 
 async def test_not_applied_creates_issue_and_recovers(hass: HomeAssistant, device) -> None:

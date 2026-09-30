@@ -67,9 +67,15 @@ def test_pct_conversion() -> None:
     assert raw_to_pct(1234, -2) == 12.34
 
 
-def test_zero_zero_target_rejected() -> None:
-    with pytest.raises(InvalidSetpoints):
-        plan_writes(sp(10000, 0), sp(0, 0), BASE)
+def test_zero_zero_target_allowed() -> None:
+    assert plan_writes(sp(10000, 0), sp(0, 0), BASE) == [(BASE + OUTWRTE, 0)]
+
+
+def test_zero_zero_target_reached_without_zero_zero_intermediate() -> None:
+    # (0 %, 50 %) -> (0 %, 0 %) only needs one write; (50 %, 50 %) -> (0, 0)
+    # must not pass through a state that is already 0/0 before the last write
+    writes = plan_writes(sp(5000, 5000), sp(0, 0), BASE)
+    assert [a - BASE for a, _ in writes] == [OUTWRTE, INWRTE]
 
 
 @pytest.mark.parametrize(

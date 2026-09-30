@@ -46,6 +46,7 @@ def test_discover_without_battery() -> None:
 
 def test_apply_transition_accepted_by_firmware() -> None:
     dev = FakeGen24()
+    dev.reject_zero_zero = True
     ctl = StorageController(dev, BASE, verify_delay=0)
     current = run(ctl.read_state()).setpoints
     # (100 %, 0 %) -> (0 %, 100 %) would fail with a naive write order
@@ -81,3 +82,21 @@ def test_reset_to_auto() -> None:
     state = run(ctl.apply(target))
     assert state.control_mode == ControlMode.AUTO
     assert state.charge_rate_pct == 100
+
+
+def test_zero_zero_target_on_accepting_firmware() -> None:
+    dev = FakeGen24()
+    ctl = StorageController(dev, BASE, verify_delay=0)
+    state = run(ctl.apply(replace(run(ctl.read_state()).setpoints, discharge_rate=0)))
+    assert (state.discharge_rate_pct, state.charge_rate_pct) == (0, 0)
+
+
+def test_zero_zero_target_on_rejecting_firmware() -> None:
+    dev = FakeGen24()
+    dev.reject_zero_zero = True
+    ctl = StorageController(dev, BASE, attempts=2, verify_delay=0)
+    target = replace(run(ctl.read_state()).setpoints, discharge_rate=0)
+    with pytest.raises(SetpointsNotApplied) as err:
+        run(ctl.apply(target))
+    assert err.value.actual.discharge_rate == 10000
+    assert dev.writes == [(BASE + OUTWRTE, 0)] * 2
