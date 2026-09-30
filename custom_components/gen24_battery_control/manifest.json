@@ -1,0 +1,13 @@
+{
+  "domain": "gen24_battery_control",
+  "name": "Gen24 Battery Control",
+  "codeowners": ["@nilseckert"],
+  "config_flow": true,
+  "documentation": "https://github.com/nilseckert/gen24_battery_control",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/nilseckert/gen24_battery_control/issues",
+  "loggers": ["pymodbus"],
+  "requirements": ["pymodbus>=3.8.0"],
+  "version": "0.1.0"
+}

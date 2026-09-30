@@ -1,0 +1,182 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fronius Gen24",
+        "description": "Am Wechselrichter muss Modbus TCP mit SunSpec-Modelltyp \"int + SF\" und aktivierter Steuerung eingeschaltet sein.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Modbus-Geräte-ID"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname des Wechselrichters.",
+          "unit_id": "Für den Wechselrichter meist 1."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum Wechselrichter fehlgeschlagen.",
+      "not_sunspec": "Das Gerät stellt keine SunSpec-Register bereit.",
+      "no_storage": "Kein Speichermodell (124) gefunden. Ist eine Batterie angeschlossen und die Geräte-ID korrekt?",
+      "unknown": "Unerwarteter Fehler."
+    },
+    "abort": {
+      "already_configured": "Dieser Wechselrichter ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Abfrageintervall (Sekunden)",
+          "enforce": "Sollwerte erzwingen"
+        },
+        "data_description": {
+          "enforce": "Änderungen anderer Modbus-Clients (z. B. evcc) überschreiben. Ist die Option aus, werden solche Änderungen als neue Sollwerte übernommen."
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "control_mode": {
+        "name": "Steuermodus",
+        "state": {
+          "auto": "Automatisch",
+          "limit_charge": "Laden begrenzen",
+          "limit_discharge": "Entladen begrenzen",
+          "limit_both": "Laden und Entladen begrenzen"
+        }
+      }
+    },
+    "number": {
+      "discharge_limit": {
+        "name": "Entladelimit"
+      },
+      "charge_limit": {
+        "name": "Ladelimit"
+      },
+      "min_reserve": {
+        "name": "Mindestreserve"
+      },
+      "revert_timeout": {
+        "name": "Rückfallzeit"
+      }
+    },
+    "switch": {
+      "grid_charging": {
+        "name": "Netzladen"
+      }
+    },
+    "button": {
+      "reset": {
+        "name": "Steuerung an Wechselrichter zurückgeben"
+      }
+    },
+    "binary_sensor": {
+      "setpoints_not_applied": {
+        "name": "Sollwerte nicht übernommen"
+      }
+    },
+    "sensor": {
+      "state_of_charge": {
+        "name": "Ladezustand"
+      },
+      "charge_status": {
+        "name": "Ladestatus",
+        "state": {
+          "off": "Aus",
+          "empty": "Leer",
+          "discharging": "Entlädt",
+          "charging": "Lädt",
+          "full": "Voll",
+          "holding": "Halten",
+          "testing": "Test"
+        }
+      },
+      "active_control_mode": {
+        "name": "Aktiver Steuermodus",
+        "state": {
+          "auto": "Automatisch",
+          "limit_charge": "Laden begrenzen",
+          "limit_discharge": "Entladen begrenzen",
+          "limit_both": "Laden und Entladen begrenzen"
+        }
+      },
+      "active_discharge_rate": {
+        "name": "Aktive Entladerate"
+      },
+      "active_charge_rate": {
+        "name": "Aktive Laderate"
+      },
+      "active_discharge_power_limit": {
+        "name": "Aktives Entladeleistungslimit"
+      },
+      "active_charge_power_limit": {
+        "name": "Aktives Ladeleistungslimit"
+      },
+      "max_charge_power": {
+        "name": "Maximale Ladeleistung"
+      },
+      "active_min_reserve": {
+        "name": "Aktive Mindestreserve"
+      },
+      "active_revert_timeout": {
+        "name": "Aktive Rückfallzeit"
+      }
+    }
+  },
+  "issues": {
+    "setpoints_not_applied": {
+      "title": "{title}: Batterie-Sollwerte nicht übernommen",
+      "description": "Der Wechselrichter hat die angeforderten Batterie-Sollwerte nicht übernommen.\n\nAngefordert: `{target}`\nGemeldet: `{actual}`\n\nDie Integration versucht es weiter. Prüfe, ob ein anderer Modbus-Client dieselben Register schreibt, oder drücke \"Steuerung an Wechselrichter zurückgeben\"."
+    }
+  },
+  "selector": {
+    "control_mode": {
+      "options": {
+        "auto": "Automatisch",
+        "limit_charge": "Laden begrenzen",
+        "limit_discharge": "Entladen begrenzen",
+        "limit_both": "Laden und Entladen begrenzen"
+      }
+    }
+  },
+  "services": {
+    "set_setpoints": {
+      "name": "Sollwerte setzen",
+      "description": "Mehrere Batterie-Sollwerte auf einmal ändern. Sie werden in sicherer Reihenfolge geschrieben und geprüft.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Wechselrichter",
+          "description": "Nötig, wenn mehr als ein Wechselrichter eingerichtet ist."
+        },
+        "control_mode": {
+          "name": "Steuermodus",
+          "description": "Welche Limits aktiv sind."
+        },
+        "discharge_limit": {
+          "name": "Entladelimit",
+          "description": "Entladerate in Prozent der Maximalleistung. Negative Werte erzwingen Laden."
+        },
+        "charge_limit": {
+          "name": "Ladelimit",
+          "description": "Laderate in Prozent der Maximalleistung. Negative Werte erzwingen Entladen."
+        },
+        "min_reserve": {
+          "name": "Mindestreserve",
+          "description": "Mindest-Ladezustand, der nicht unterschritten wird."
+        },
+        "revert_timeout": {
+          "name": "Rückfallzeit",
+          "description": "Sekunden, nach denen der Wechselrichter in den Automatikbetrieb zurückfällt, wenn keine neuen Sollwerte kommen. 0 schaltet das ab."
+        },
+        "grid_charging": {
+          "name": "Netzladen",
+          "description": "Laden der Batterie aus dem Netz erlauben."
+        }
+      }
+    }
+  }
+}

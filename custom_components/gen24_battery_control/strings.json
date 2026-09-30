@@ -1,0 +1,182 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fronius Gen24",
+        "description": "Modbus TCP must be enabled on the inverter with SunSpec model type \"int + SF\" and control enabled.",
+        "data": {
+          "host": "[%key:common::config_flow::data::host%]",
+          "port": "[%key:common::config_flow::data::port%]",
+          "unit_id": "Modbus unit ID"
+        },
+        "data_description": {
+          "host": "IP address or hostname of the inverter.",
+          "unit_id": "Usually 1 for the inverter."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]",
+      "not_sunspec": "The device does not expose a SunSpec register map.",
+      "no_storage": "No storage model (124) found. Is a battery connected and the unit ID correct?",
+      "unknown": "[%key:common::config_flow::error::unknown%]"
+    },
+    "abort": {
+      "already_configured": "[%key:common::config_flow::abort::already_configured_device%]"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "enforce": "Enforce setpoints"
+        },
+        "data_description": {
+          "enforce": "Overwrite changes made by other Modbus clients (e.g. evcc). When off, such changes are adopted as the new setpoints."
+        }
+      }
+    }
+  },
+  "entity": {
+    "select": {
+      "control_mode": {
+        "name": "Control mode",
+        "state": {
+          "auto": "Automatic",
+          "limit_charge": "Limit charging",
+          "limit_discharge": "Limit discharging",
+          "limit_both": "Limit charging and discharging"
+        }
+      }
+    },
+    "number": {
+      "discharge_limit": {
+        "name": "Discharge limit"
+      },
+      "charge_limit": {
+        "name": "Charge limit"
+      },
+      "min_reserve": {
+        "name": "Minimum reserve"
+      },
+      "revert_timeout": {
+        "name": "Revert timeout"
+      }
+    },
+    "switch": {
+      "grid_charging": {
+        "name": "Grid charging"
+      }
+    },
+    "button": {
+      "reset": {
+        "name": "Return control to inverter"
+      }
+    },
+    "binary_sensor": {
+      "setpoints_not_applied": {
+        "name": "Setpoints not applied"
+      }
+    },
+    "sensor": {
+      "state_of_charge": {
+        "name": "State of charge"
+      },
+      "charge_status": {
+        "name": "Charge status",
+        "state": {
+          "off": "Off",
+          "empty": "Empty",
+          "discharging": "Discharging",
+          "charging": "Charging",
+          "full": "Full",
+          "holding": "Holding",
+          "testing": "Testing"
+        }
+      },
+      "active_control_mode": {
+        "name": "Active control mode",
+        "state": {
+          "auto": "Automatic",
+          "limit_charge": "Limit charging",
+          "limit_discharge": "Limit discharging",
+          "limit_both": "Limit charging and discharging"
+        }
+      },
+      "active_discharge_rate": {
+        "name": "Active discharge rate"
+      },
+      "active_charge_rate": {
+        "name": "Active charge rate"
+      },
+      "active_discharge_power_limit": {
+        "name": "Active discharge power limit"
+      },
+      "active_charge_power_limit": {
+        "name": "Active charge power limit"
+      },
+      "max_charge_power": {
+        "name": "Maximum charge power"
+      },
+      "active_min_reserve": {
+        "name": "Active minimum reserve"
+      },
+      "active_revert_timeout": {
+        "name": "Active revert timeout"
+      }
+    }
+  },
+  "issues": {
+    "setpoints_not_applied": {
+      "title": "{title}: battery setpoints not applied",
+      "description": "The inverter did not accept the requested battery setpoints.\n\nRequested: `{target}`\nReported: `{actual}`\n\nThe integration keeps retrying. Check whether another Modbus client writes the same registers, or press \"Return control to inverter\"."
+    }
+  },
+  "selector": {
+    "control_mode": {
+      "options": {
+        "auto": "Automatic",
+        "limit_charge": "Limit charging",
+        "limit_discharge": "Limit discharging",
+        "limit_both": "Limit charging and discharging"
+      }
+    }
+  },
+  "services": {
+    "set_setpoints": {
+      "name": "Set setpoints",
+      "description": "Change several battery setpoints at once. They are written in a safe order and verified.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Inverter",
+          "description": "Required if more than one inverter is configured."
+        },
+        "control_mode": {
+          "name": "Control mode",
+          "description": "Which limits are active."
+        },
+        "discharge_limit": {
+          "name": "Discharge limit",
+          "description": "Discharge rate in percent of the maximum power. Negative values force charging."
+        },
+        "charge_limit": {
+          "name": "Charge limit",
+          "description": "Charge rate in percent of the maximum power. Negative values force discharging."
+        },
+        "min_reserve": {
+          "name": "Minimum reserve",
+          "description": "Minimum state of charge reserve."
+        },
+        "revert_timeout": {
+          "name": "Revert timeout",
+          "description": "Seconds after which the inverter falls back to automatic operation if no new setpoints arrive. 0 disables it."
+        },
+        "grid_charging": {
+          "name": "Grid charging",
+          "description": "Allow charging the battery from the grid."
+        }
+      }
+    }
+  }
+}
