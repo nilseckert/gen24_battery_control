@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-import time
+from time import monotonic
 from dataclasses import replace
 from datetime import timedelta
 from typing import Any
@@ -70,7 +70,7 @@ class Gen24Coordinator(DataUpdateCoordinator[StorageState]):
         self.enforce: bool = entry.options.get(CONF_ENFORCE, DEFAULT_ENFORCE)
         self.target: Setpoints | None = None
         self.in_sync = True
-        self._last_write = 0.0
+        self._last_write: float | None = None
 
     @property
     def _issue_id(self) -> str:
@@ -111,8 +111,10 @@ class Gen24Coordinator(DataUpdateCoordinator[StorageState]):
         assert self.target is not None
         if self.target.control_mode == ControlMode.AUTO or not self.target.revert_timeout:
             return False
+        if self._last_write is None:
+            return True
         interval = max(self.target.revert_timeout * KEEPALIVE_FRACTION, KEEPALIVE_MIN_SECONDS)
-        return time.monotonic() - self._last_write >= interval
+        return monotonic() - self._last_write >= interval
 
     async def _apply(self, target: Setpoints, *, keepalive: bool = False) -> StorageState:
         try:
@@ -121,7 +123,7 @@ class Gen24Coordinator(DataUpdateCoordinator[StorageState]):
             _LOGGER.error("Inverter did not accept setpoints: %s", err)
             self._set_sync(False, err)
             return await self.controller.read_state()
-        self._last_write = time.monotonic()
+        self._last_write = monotonic()
         self._set_sync(True)
         return state
 

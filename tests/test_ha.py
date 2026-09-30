@@ -167,13 +167,19 @@ async def test_external_change_overwritten_with_enforce(hass: HomeAssistant, dev
 
 async def test_keepalive_rewrites_rates(hass: HomeAssistant, device) -> None:
     entry = await setup(hass)
-    device.writes.clear()
-    await entry.runtime_data.async_refresh()
-    assert [a - BASE for a, _ in device.writes] == [OUTWRTE, INWRTE, STORCTL_MOD]
-    # not due again right away
-    device.writes.clear()
-    await entry.runtime_data.async_refresh()
-    assert device.writes == []
+    # host booted recently: monotonic clock is still smaller than the interval
+    with patch(f"{PKG}.coordinator.monotonic", return_value=10.0):
+        device.writes.clear()
+        await entry.runtime_data.async_refresh()
+        assert [a - BASE for a, _ in device.writes] == [OUTWRTE, INWRTE, STORCTL_MOD]
+        # not due again right away
+        device.writes.clear()
+        await entry.runtime_data.async_refresh()
+        assert device.writes == []
+    # due again after a third of the revert timeout (600 s)
+    with patch(f"{PKG}.coordinator.monotonic", return_value=210.0):
+        await entry.runtime_data.async_refresh()
+        assert [a - BASE for a, _ in device.writes] == [OUTWRTE, INWRTE, STORCTL_MOD]
 
 
 async def test_reset_button(hass: HomeAssistant, device) -> None:
