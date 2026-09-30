@@ -62,6 +62,12 @@
       },
       "revert_timeout": {
         "name": "Revert timeout"
+      },
+      "discharge_power_limit": {
+        "name": "Discharge power limit"
+      },
+      "charge_power_limit": {
+        "name": "Charge power limit"
       }
     },
     "switch": {
@@ -163,6 +169,14 @@
         "charge_limit": {
           "name": "Charge limit",
           "description": "Charge rate in percent of the maximum power. Negative values force discharging."
+        },
+        "discharge_power_limit": {
+          "name": "Discharge power limit",
+          "description": "Discharge power limit in kW. Converted to percent of the maximum power reported by the inverter. Cannot be combined with the discharge limit in percent."
+        },
+        "charge_power_limit": {
+          "name": "Charge power limit",
+          "description": "Charge power limit in kW. Converted to percent of the maximum power reported by the inverter. Cannot be combined with the charge limit in percent."
         },
         "min_reserve": {
           "name": "Minimum reserve",

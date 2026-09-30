@@ -1,22 +1,64 @@
 {
   "entity": {
-    "select": { "control_mode": { "default": "mdi:battery-sync" } },
-    "number": {
-      "discharge_limit": { "default": "mdi:battery-arrow-down" },
-      "charge_limit": { "default": "mdi:battery-arrow-up" },
-      "min_reserve": { "default": "mdi:battery-lock" },
-      "revert_timeout": { "default": "mdi:timer-refresh-outline" }
+    "select": {
+      "control_mode": {
+        "default": "mdi:battery-sync"
+      }
     },
-    "switch": { "grid_charging": { "default": "mdi:transmission-tower-import" } },
-    "button": { "reset": { "default": "mdi:restore" } },
+    "number": {
+      "discharge_limit": {
+        "default": "mdi:battery-arrow-down"
+      },
+      "charge_limit": {
+        "default": "mdi:battery-arrow-up"
+      },
+      "min_reserve": {
+        "default": "mdi:battery-lock"
+      },
+      "revert_timeout": {
+        "default": "mdi:timer-refresh-outline"
+      },
+      "discharge_power_limit": {
+        "default": "mdi:battery-arrow-down"
+      },
+      "charge_power_limit": {
+        "default": "mdi:battery-arrow-up"
+      }
+    },
+    "switch": {
+      "grid_charging": {
+        "default": "mdi:transmission-tower-import"
+      }
+    },
+    "button": {
+      "reset": {
+        "default": "mdi:restore"
+      }
+    },
     "sensor": {
-      "charge_status": { "default": "mdi:battery-heart-variant" },
-      "active_control_mode": { "default": "mdi:battery-sync-outline" },
-      "active_discharge_rate": { "default": "mdi:battery-arrow-down-outline" },
-      "active_charge_rate": { "default": "mdi:battery-arrow-up-outline" },
-      "active_min_reserve": { "default": "mdi:battery-lock-open" },
-      "active_revert_timeout": { "default": "mdi:timer-outline" }
+      "charge_status": {
+        "default": "mdi:battery-heart-variant"
+      },
+      "active_control_mode": {
+        "default": "mdi:battery-sync-outline"
+      },
+      "active_discharge_rate": {
+        "default": "mdi:battery-arrow-down-outline"
+      },
+      "active_charge_rate": {
+        "default": "mdi:battery-arrow-up-outline"
+      },
+      "active_min_reserve": {
+        "default": "mdi:battery-lock-open"
+      },
+      "active_revert_timeout": {
+        "default": "mdi:timer-outline"
+      }
     }
   },
-  "services": { "set_setpoints": { "service": "mdi:battery-sync" } }
+  "services": {
+    "set_setpoints": {
+      "service": "mdi:battery-sync"
+    }
+  }
 }

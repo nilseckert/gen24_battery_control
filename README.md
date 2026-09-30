@@ -52,6 +52,8 @@ Gen24 Battery Control*.
 | `select` Steuermodus | StorCtl_Mod (40348) | `auto`, `limit_charge`, `limit_discharge`, `limit_both` |
 | `number` Entladelimit | OutWRte (40355) | % der maximalen Leistung, negativ = erzwungenes Laden |
 | `number` Ladelimit | InWRte (40356) | % der maximalen Leistung, negativ = erzwungenes Entladen |
+| `number` Entladeleistungslimit | OutWRte (40355) | dasselbe in kW, umgerechnet über WChaMax |
+| `number` Ladeleistungslimit | InWRte (40356) | dasselbe in kW, umgerechnet über WChaMax |
 | `number` Mindestreserve | MinRsvPct (40350) | % Ladezustand |
 | `number` Rückfallzeit | InOutWRte_RvrtTms (40358) | Sekunden, 0 = aus |
 | `switch` Netzladen | ChaGriSet (40360) | Laden aus dem Netz erlauben |
@@ -90,6 +92,19 @@ automation:
                               - states('sensor.pv_gesamt') | float(0), 0] | max %}
             {{ [defizit / states('sensor.symo_gen24_10_0_maximale_ladeleistung') | float(1) * 100, 100] | min }}
           charge_limit: "{{ 0 if is_state('binary_sensor.ladeziel_erreicht', 'on') else 100 }}"
+```
+
+Statt in Prozent lassen sich die Limits auch in kW angeben
+(`discharge_power_limit`, `charge_power_limit`). Pro Richtung ist nur eine der
+beiden Angaben erlaubt. Die kW-Werte werden in Prozent der vom Wechselrichter
+gemeldeten maximalen Ladeleistung (WChaMax) umgerechnet:
+
+```yaml
+action: gen24_battery_control.set_setpoints
+data:
+  control_mode: limit_both
+  discharge_power_limit: "{{ [states('sensor.hausverbrauch') | float(0) / 1000 - states('sensor.pv_gesamt') | float(0) / 1000, 0.1] | max }}"
+  charge_power_limit: 0
 ```
 
 Achtung: `discharge_limit: 0` zusammen mit `charge_limit: 0` wird abgelehnt.

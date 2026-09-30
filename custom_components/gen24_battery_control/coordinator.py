@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-from time import monotonic
 from dataclasses import replace
 from datetime import timedelta
+from time import monotonic
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -81,6 +81,27 @@ class Gen24Coordinator(DataUpdateCoordinator[StorageState]):
 
     def rate_to_pct(self, raw: int) -> float:
         return raw_to_pct(raw, self.data.rate_sf)
+
+    @property
+    def max_power_kw(self) -> float | None:
+        """WChaMax in kW; the rates are percentages of this value."""
+        if self.data.max_charge_power is None:
+            return None
+        return self.data.max_charge_power / 1000
+
+    def kw_to_rate(self, kw: float) -> int:
+        """Convert a power limit in kW to a raw rate, raising for invalid input."""
+        max_kw = self.max_power_kw
+        if not max_kw:
+            raise ServiceValidationError("inverter reports no maximum charge power (WChaMax)")
+        if abs(kw) > max_kw:
+            raise ServiceValidationError(f"{kw} kW exceeds the maximum of {max_kw} kW")
+        return self.pct_to_rate(kw / max_kw * 100)
+
+    def rate_to_kw(self, raw: int) -> float | None:
+        if (max_kw := self.max_power_kw) is None:
+            return None
+        return round(self.rate_to_pct(raw) * max_kw / 100, 3)
 
     def pct_to_reserve(self, pct: float) -> int:
         return pct_to_raw(pct, self.data.min_reserve_sf)

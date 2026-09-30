@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+import voluptuous as vol
 from fake_gen24 import BASE, FakeGen24
 from g24.registers import INWRTE, OUTWRTE, STORCTL_MOD, from_int16
 from homeassistant import config_entries
@@ -204,3 +205,55 @@ async def test_negative_charge_limit(hass: HomeAssistant, device) -> None:
 async def test_unload(hass: HomeAssistant, device) -> None:
     entry = await setup(hass)
     assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_power_limit_entities(hass: HomeAssistant, device) -> None:
+    await setup(hass)
+    state = hass.states.get(eid(hass, "number", "discharge_power_limit"))
+    assert state.state == "12.8"
+    assert state.attributes["unit_of_measurement"] == "kW"
+    assert state.attributes["min"] == -12.8
+    assert state.attributes["max"] == 12.8
+    assert hass.states.get(eid(hass, "number", "charge_power_limit")).state == "0.0"
+
+
+async def test_set_power_limit_via_number(hass: HomeAssistant, device) -> None:
+    await setup(hass)
+    await hass.services.async_call(
+        "number", "set_value",
+        {"entity_id": eid(hass, "number", "charge_power_limit"), "value": 3.2},
+        blocking=True,
+    )
+    assert device.regs[BASE + INWRTE] == 2500  # 3.2 kW of 12.8 kW = 25 %
+    assert hass.states.get(eid(hass, "number", "charge_limit")).state == "25.0"
+
+
+async def test_set_power_limit_via_service(hass: HomeAssistant, device) -> None:
+    await setup(hass)
+    await hass.services.async_call(
+        DOMAIN, "set_setpoints",
+        {"discharge_power_limit": 6.4, "charge_power_limit": 1.28},
+        blocking=True,
+    )
+    assert device.regs[BASE + OUTWRTE] == 5000
+    assert device.regs[BASE + INWRTE] == 1000
+    assert hass.states.get(eid(hass, "sensor", "active_discharge_power_limit")).state == "6400"
+
+
+async def test_power_limit_above_max_rejected(hass: HomeAssistant, device) -> None:
+    await setup(hass)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN, "set_setpoints", {"discharge_power_limit": 13}, blocking=True
+        )
+    assert device.writes == []
+
+
+async def test_percent_and_power_exclusive(hass: HomeAssistant, device) -> None:
+    await setup(hass)
+    with pytest.raises((vol.Invalid, ServiceValidationError)):
+        await hass.services.async_call(
+            DOMAIN, "set_setpoints",
+            {"discharge_limit": 50, "discharge_power_limit": 6.4},
+            blocking=True,
+        )

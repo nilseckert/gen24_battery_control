@@ -12,9 +12,11 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import (
     ATTR_CHARGE_LIMIT,
+    ATTR_CHARGE_POWER_LIMIT,
     ATTR_CONFIG_ENTRY_ID,
     ATTR_CONTROL_MODE,
     ATTR_DISCHARGE_LIMIT,
+    ATTR_DISCHARGE_POWER_LIMIT,
     ATTR_GRID_CHARGING,
     ATTR_MIN_RESERVE,
     ATTR_REVERT_TIMEOUT,
@@ -25,13 +27,16 @@ from .const import (
 from .coordinator import Gen24Coordinator
 
 _PCT = vol.All(vol.Coerce(float), vol.Range(min=-100, max=100))
+_KW = vol.Coerce(float)
 
 SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
         vol.Optional(ATTR_CONTROL_MODE): vol.In(list(CONTROL_MODE_OPTIONS)),
-        vol.Optional(ATTR_DISCHARGE_LIMIT): _PCT,
-        vol.Optional(ATTR_CHARGE_LIMIT): _PCT,
+        vol.Exclusive(ATTR_DISCHARGE_LIMIT, "discharge"): _PCT,
+        vol.Exclusive(ATTR_CHARGE_LIMIT, "charge"): _PCT,
+        vol.Exclusive(ATTR_DISCHARGE_POWER_LIMIT, "discharge"): _KW,
+        vol.Exclusive(ATTR_CHARGE_POWER_LIMIT, "charge"): _KW,
         vol.Optional(ATTR_MIN_RESERVE): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
         vol.Optional(ATTR_REVERT_TIMEOUT): vol.All(vol.Coerce(int), vol.Range(min=0, max=65534)),
         vol.Optional(ATTR_GRID_CHARGING): cv.boolean,
@@ -67,6 +72,10 @@ def async_setup_services(hass: HomeAssistant) -> None:
             changes["discharge_rate"] = coordinator.pct_to_rate(call.data[ATTR_DISCHARGE_LIMIT])
         if ATTR_CHARGE_LIMIT in call.data:
             changes["charge_rate"] = coordinator.pct_to_rate(call.data[ATTR_CHARGE_LIMIT])
+        if ATTR_DISCHARGE_POWER_LIMIT in call.data:
+            changes["discharge_rate"] = coordinator.kw_to_rate(call.data[ATTR_DISCHARGE_POWER_LIMIT])
+        if ATTR_CHARGE_POWER_LIMIT in call.data:
+            changes["charge_rate"] = coordinator.kw_to_rate(call.data[ATTR_CHARGE_POWER_LIMIT])
         if ATTR_MIN_RESERVE in call.data:
             changes["min_reserve"] = coordinator.pct_to_reserve(call.data[ATTR_MIN_RESERVE])
         if ATTR_REVERT_TIMEOUT in call.data:

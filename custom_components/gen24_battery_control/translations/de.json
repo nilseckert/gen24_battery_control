@@ -62,6 +62,12 @@
       },
       "revert_timeout": {
         "name": "Rückfallzeit"
+      },
+      "discharge_power_limit": {
+        "name": "Entladeleistungslimit"
+      },
+      "charge_power_limit": {
+        "name": "Ladeleistungslimit"
       }
     },
     "switch": {
@@ -163,6 +169,14 @@
         "charge_limit": {
           "name": "Ladelimit",
           "description": "Laderate in Prozent der Maximalleistung. Negative Werte erzwingen Entladen."
+        },
+        "discharge_power_limit": {
+          "name": "Entladeleistungslimit",
+          "description": "Entladeleistung in kW. Wird in Prozent der vom Wechselrichter gemeldeten Maximalleistung umgerechnet. Nicht zusammen mit dem Entladelimit in Prozent verwendbar."
+        },
+        "charge_power_limit": {
+          "name": "Ladeleistungslimit",
+          "description": "Ladeleistung in kW. Wird in Prozent der vom Wechselrichter gemeldeten Maximalleistung umgerechnet. Nicht zusammen mit dem Ladelimit in Prozent verwendbar."
         },
         "min_reserve": {
           "name": "Mindestreserve",
