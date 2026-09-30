@@ -9,5 +9,5 @@
   "issue_tracker": "https://github.com/nilseckert/gen24_battery_control/issues",
   "loggers": ["pymodbus"],
   "requirements": ["pymodbus>=3.8.0"],
-  "version": "0.2.1"
+  "version": "0.3.0"
 }

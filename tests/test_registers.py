@@ -132,3 +132,13 @@ def test_keepalive_rewrites_rates_and_mode() -> None:
 def test_negative_rate_encoded_as_uint16() -> None:
     writes = plan_writes(sp(10000, 0), sp(10000, -5000), BASE)
     assert writes == [(BASE + INWRTE, 0x10000 - 5000)]
+
+
+def test_grid_charge_writes_mode_before_negative_discharge_rate() -> None:
+    writes = plan_writes(sp(10000, 0), sp(-2000, 10000, ControlMode.LIMIT_DISCHARGE), BASE)
+    assert [a - BASE for a, _ in writes] == [STORCTL_MOD, OUTWRTE, INWRTE]
+
+
+def test_leaving_grid_charge_writes_rates_before_mode() -> None:
+    writes = plan_writes(sp(-2000, 10000, ControlMode.LIMIT_DISCHARGE), sp(10000, 0), BASE)
+    assert [a - BASE for a, _ in writes] == [OUTWRTE, INWRTE, STORCTL_MOD]

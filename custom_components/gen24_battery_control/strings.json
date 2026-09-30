@@ -68,6 +68,12 @@
       },
       "charge_power_limit": {
         "name": "Charge power limit"
+      },
+      "grid_charge_power": {
+        "name": "Charge from grid"
+      },
+      "grid_discharge_power": {
+        "name": "Discharge to grid"
       }
     },
     "switch": {
@@ -130,6 +136,12 @@
       },
       "active_revert_timeout": {
         "name": "Active revert timeout"
+      },
+      "active_grid_charge_power": {
+        "name": "Active charge from grid"
+      },
+      "active_grid_discharge_power": {
+        "name": "Active discharge to grid"
       }
     }
   },
@@ -152,7 +164,7 @@
   "services": {
     "set_setpoints": {
       "name": "Set setpoints",
-      "description": "Change several battery setpoints at once. They are written in a safe order and verified.",
+      "description": "Change several battery setpoints at once. They are written in a safe order and verified. Per side only one of: limit in %, limit in W, grid power.",
       "fields": {
         "config_entry_id": {
           "name": "Inverter",
@@ -164,19 +176,27 @@
         },
         "discharge_limit": {
           "name": "Discharge limit",
-          "description": "Discharge rate in percent of the maximum power. Negative values force charging."
+          "description": "Discharge limit in percent of the maximum power. Ends charging from the grid."
         },
         "charge_limit": {
           "name": "Charge limit",
-          "description": "Charge rate in percent of the maximum power. Negative values force discharging."
+          "description": "Charge limit in percent of the maximum power. Ends discharging to the grid."
         },
         "discharge_power_limit": {
           "name": "Discharge power limit",
-          "description": "Discharge power limit in kW. Converted to percent of the maximum power reported by the inverter. Cannot be combined with the discharge limit in percent."
+          "description": "Discharge limit in W. Ends charging from the grid."
         },
         "charge_power_limit": {
           "name": "Charge power limit",
-          "description": "Charge power limit in kW. Converted to percent of the maximum power reported by the inverter. Cannot be combined with the charge limit in percent."
+          "description": "Charge limit in W. Ends discharging to the grid."
+        },
+        "grid_charge_power": {
+          "name": "Charge from grid",
+          "description": "Charge the battery from the grid with this power in W, 0 ends it. Switches to \"Limit discharging\" and allows grid charging. Ends discharging to the grid."
+        },
+        "grid_discharge_power": {
+          "name": "Discharge to grid",
+          "description": "Discharge the battery with this power in W, 0 ends it. What the house does not use goes to the grid. Ends charging from the grid."
         },
         "min_reserve": {
           "name": "Minimum reserve",

@@ -16,7 +16,7 @@ set_setpoints:
     discharge_limit:
       selector:
         number:
-          min: -100
+          min: 0
           max: 100
           step: 0.01
           unit_of_measurement: "%"
@@ -24,7 +24,7 @@ set_setpoints:
     charge_limit:
       selector:
         number:
-          min: -100
+          min: 0
           max: 100
           step: 0.01
           unit_of_measurement: "%"
@@ -32,18 +32,34 @@ set_setpoints:
     discharge_power_limit:
       selector:
         number:
-          min: -30
-          max: 30
-          step: 0.01
-          unit_of_measurement: kW
+          min: 0
+          max: 30000
+          step: 1
+          unit_of_measurement: W
           mode: box
     charge_power_limit:
       selector:
         number:
-          min: -30
-          max: 30
-          step: 0.01
-          unit_of_measurement: kW
+          min: 0
+          max: 30000
+          step: 1
+          unit_of_measurement: W
+          mode: box
+    grid_charge_power:
+      selector:
+        number:
+          min: 0
+          max: 30000
+          step: 1
+          unit_of_measurement: W
+          mode: box
+    grid_discharge_power:
+      selector:
+        number:
+          min: 0
+          max: 30000
+          step: 1
+          unit_of_measurement: W
           mode: box
     min_reserve:
       selector:

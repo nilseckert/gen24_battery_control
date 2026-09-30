@@ -17,7 +17,9 @@ from .const import (
     ATTR_CONTROL_MODE,
     ATTR_DISCHARGE_LIMIT,
     ATTR_DISCHARGE_POWER_LIMIT,
+    ATTR_GRID_CHARGE_POWER,
     ATTR_GRID_CHARGING,
+    ATTR_GRID_DISCHARGE_POWER,
     ATTR_MIN_RESERVE,
     ATTR_REVERT_TIMEOUT,
     CONTROL_MODE_OPTIONS,
@@ -26,17 +28,23 @@ from .const import (
 )
 from .coordinator import Gen24Coordinator
 
-_PCT = vol.All(vol.Coerce(float), vol.Range(min=-100, max=100))
-_KW = vol.Coerce(float)
+_PCT = vol.All(vol.Coerce(float), vol.Range(min=0, max=100))
+_WATT = vol.All(vol.Coerce(float), vol.Range(min=0))
+
+# Only one value per register: each group maps to OutWRte or InWRte
+_DISCHARGE = "discharge side (discharge_limit, discharge_power_limit, grid_charge_power)"
+_CHARGE = "charge side (charge_limit, charge_power_limit, grid_discharge_power)"
 
 SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_CONFIG_ENTRY_ID): cv.string,
         vol.Optional(ATTR_CONTROL_MODE): vol.In(list(CONTROL_MODE_OPTIONS)),
-        vol.Exclusive(ATTR_DISCHARGE_LIMIT, "discharge"): _PCT,
-        vol.Exclusive(ATTR_CHARGE_LIMIT, "charge"): _PCT,
-        vol.Exclusive(ATTR_DISCHARGE_POWER_LIMIT, "discharge"): _KW,
-        vol.Exclusive(ATTR_CHARGE_POWER_LIMIT, "charge"): _KW,
+        vol.Exclusive(ATTR_DISCHARGE_LIMIT, _DISCHARGE): _PCT,
+        vol.Exclusive(ATTR_DISCHARGE_POWER_LIMIT, _DISCHARGE): _WATT,
+        vol.Exclusive(ATTR_GRID_CHARGE_POWER, _DISCHARGE): _WATT,
+        vol.Exclusive(ATTR_CHARGE_LIMIT, _CHARGE): _PCT,
+        vol.Exclusive(ATTR_CHARGE_POWER_LIMIT, _CHARGE): _WATT,
+        vol.Exclusive(ATTR_GRID_DISCHARGE_POWER, _CHARGE): _WATT,
         vol.Optional(ATTR_MIN_RESERVE): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
         vol.Optional(ATTR_REVERT_TIMEOUT): vol.All(vol.Coerce(int), vol.Range(min=0, max=65534)),
         vol.Optional(ATTR_GRID_CHARGING): cv.boolean,
@@ -65,17 +73,37 @@ def async_setup_services(hass: HomeAssistant) -> None:
 
     async def set_setpoints(call: ServiceCall) -> None:
         coordinator = _coordinator(hass, call.data.get(ATTR_CONFIG_ENTRY_ID))
+        data = call.data
+        c = coordinator
+        if data.get(ATTR_GRID_CHARGE_POWER, 0) > 0 and data.get(ATTR_GRID_DISCHARGE_POWER, 0) > 0:
+            raise ServiceValidationError(
+                "grid_charge_power and grid_discharge_power cannot both be active"
+            )
+        if (
+            data.get(ATTR_GRID_CHARGE_POWER, 0) > 0
+            and data.get(ATTR_CONTROL_MODE, "limit_discharge") != "limit_discharge"
+        ):
+            raise ServiceValidationError(
+                "grid_charge_power needs control_mode limit_discharge (or no control_mode)"
+            )
         changes: dict[str, Any] = {}
-        if ATTR_CONTROL_MODE in call.data:
-            changes["control_mode"] = CONTROL_MODE_OPTIONS[call.data[ATTR_CONTROL_MODE]]
-        if ATTR_DISCHARGE_LIMIT in call.data:
-            changes["discharge_rate"] = coordinator.pct_to_rate(call.data[ATTR_DISCHARGE_LIMIT])
-        if ATTR_CHARGE_LIMIT in call.data:
-            changes["charge_rate"] = coordinator.pct_to_rate(call.data[ATTR_CHARGE_LIMIT])
-        if ATTR_DISCHARGE_POWER_LIMIT in call.data:
-            changes["discharge_rate"] = coordinator.kw_to_rate(call.data[ATTR_DISCHARGE_POWER_LIMIT])
-        if ATTR_CHARGE_POWER_LIMIT in call.data:
-            changes["charge_rate"] = coordinator.kw_to_rate(call.data[ATTR_CHARGE_POWER_LIMIT])
+        # Discharge side (OutWRte)
+        if ATTR_DISCHARGE_LIMIT in data:
+            changes |= c.discharge_limit_changes(c.pct_to_rate(data[ATTR_DISCHARGE_LIMIT]))
+        if ATTR_DISCHARGE_POWER_LIMIT in data:
+            changes |= c.discharge_limit_changes(c.watt_to_rate(data[ATTR_DISCHARGE_POWER_LIMIT]))
+        if ATTR_GRID_CHARGE_POWER in data:
+            changes |= c.grid_charge_changes(data[ATTR_GRID_CHARGE_POWER])
+        # Charge side (InWRte)
+        if ATTR_CHARGE_LIMIT in data:
+            changes |= c.charge_limit_changes(c.pct_to_rate(data[ATTR_CHARGE_LIMIT]))
+        if ATTR_CHARGE_POWER_LIMIT in data:
+            changes |= c.charge_limit_changes(c.watt_to_rate(data[ATTR_CHARGE_POWER_LIMIT]))
+        if ATTR_GRID_DISCHARGE_POWER in data:
+            changes |= c.grid_discharge_changes(data[ATTR_GRID_DISCHARGE_POWER])
+        # An explicit control mode wins over the one implied by the fields above
+        if ATTR_CONTROL_MODE in data:
+            changes["control_mode"] = CONTROL_MODE_OPTIONS[data[ATTR_CONTROL_MODE]]
         if ATTR_MIN_RESERVE in call.data:
             changes["min_reserve"] = coordinator.pct_to_reserve(call.data[ATTR_MIN_RESERVE])
         if ATTR_REVERT_TIMEOUT in call.data:

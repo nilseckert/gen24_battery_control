@@ -213,6 +213,9 @@ def plan_writes(
       (see is_zero_zero).
     * Entering a limiting mode: rates before StorCtl_Mod, so the mode never
       activates with stale rates. Returning to AUTO: StorCtl_Mod first.
+    * Switching to a negative discharge rate (charge from grid) together
+      with a mode change: StorCtl_Mod first, because the Gen24 rejects a
+      negative OutWRte in LIMIT_BOTH (tested on firmware 1.41.11-1).
     * keepalive rewrites the rates even if unchanged, which restarts the
       inverter's revert timer.
     """
@@ -226,7 +229,12 @@ def plan_writes(
     mode_changed = target.control_mode != current.control_mode
     mode_write = [(base + STORCTL_MOD, target.control_mode)] if mode_changed or keepalive else []
 
-    if target.control_mode == ControlMode.AUTO:
+    # A negative discharge rate (charge from grid) is rejected in LIMIT_BOTH,
+    # so the mode has to change first.
+    mode_first = target.control_mode == ControlMode.AUTO or (
+        mode_changed and target.discharge_rate < 0
+    )
+    if mode_first:
         writes += mode_write + rate_writes
     else:
         writes += rate_writes + mode_write

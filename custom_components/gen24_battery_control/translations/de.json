@@ -68,6 +68,12 @@
       },
       "charge_power_limit": {
         "name": "Ladeleistungslimit"
+      },
+      "grid_charge_power": {
+        "name": "Laden aus dem Netz"
+      },
+      "grid_discharge_power": {
+        "name": "Entladen ins Netz"
       }
     },
     "switch": {
@@ -130,6 +136,12 @@
       },
       "active_revert_timeout": {
         "name": "Aktive Rückfallzeit"
+      },
+      "active_grid_charge_power": {
+        "name": "Aktives Laden aus dem Netz"
+      },
+      "active_grid_discharge_power": {
+        "name": "Aktives Entladen ins Netz"
       }
     }
   },
@@ -152,7 +164,7 @@
   "services": {
     "set_setpoints": {
       "name": "Sollwerte setzen",
-      "description": "Mehrere Batterie-Sollwerte auf einmal ändern. Sie werden in sicherer Reihenfolge geschrieben und geprüft.",
+      "description": "Mehrere Batterie-Sollwerte auf einmal ändern. Sie werden in sicherer Reihenfolge geschrieben und geprüft. Pro Seite nur eine Angabe: Limit in %, Limit in W oder Netzleistung.",
       "fields": {
         "config_entry_id": {
           "name": "Wechselrichter",
@@ -164,19 +176,27 @@
         },
         "discharge_limit": {
           "name": "Entladelimit",
-          "description": "Entladerate in Prozent der Maximalleistung. Negative Werte erzwingen Laden."
+          "description": "Entladelimit in Prozent der Maximalleistung. Beendet Laden aus dem Netz."
         },
         "charge_limit": {
           "name": "Ladelimit",
-          "description": "Laderate in Prozent der Maximalleistung. Negative Werte erzwingen Entladen."
+          "description": "Ladelimit in Prozent der Maximalleistung. Beendet Entladen ins Netz."
         },
         "discharge_power_limit": {
           "name": "Entladeleistungslimit",
-          "description": "Entladeleistung in kW. Wird in Prozent der vom Wechselrichter gemeldeten Maximalleistung umgerechnet. Nicht zusammen mit dem Entladelimit in Prozent verwendbar."
+          "description": "Entladelimit in W. Beendet Laden aus dem Netz."
         },
         "charge_power_limit": {
           "name": "Ladeleistungslimit",
-          "description": "Ladeleistung in kW. Wird in Prozent der vom Wechselrichter gemeldeten Maximalleistung umgerechnet. Nicht zusammen mit dem Ladelimit in Prozent verwendbar."
+          "description": "Ladelimit in W. Beendet Entladen ins Netz."
+        },
+        "grid_charge_power": {
+          "name": "Laden aus dem Netz",
+          "description": "Batterie mit dieser Leistung in W aus dem Netz laden, 0 beendet es. Schaltet auf \"Entladen begrenzen\" und erlaubt Netzladen. Beendet Entladen ins Netz."
+        },
+        "grid_discharge_power": {
+          "name": "Entladen ins Netz",
+          "description": "Batterie mit dieser Leistung in W entladen, 0 beendet es. Was das Haus nicht braucht, geht ins Netz. Beendet Laden aus dem Netz."
         },
         "min_reserve": {
           "name": "Mindestreserve",

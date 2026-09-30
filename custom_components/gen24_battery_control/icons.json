@@ -23,6 +23,12 @@
       },
       "charge_power_limit": {
         "default": "mdi:battery-arrow-up"
+      },
+      "grid_charge_power": {
+        "default": "mdi:transmission-tower-export"
+      },
+      "grid_discharge_power": {
+        "default": "mdi:transmission-tower-import"
       }
     },
     "switch": {
@@ -53,6 +59,12 @@
       },
       "active_revert_timeout": {
         "default": "mdi:timer-outline"
+      },
+      "active_grid_charge_power": {
+        "default": "mdi:transmission-tower-export"
+      },
+      "active_grid_discharge_power": {
+        "default": "mdi:transmission-tower-import"
       }
     }
   },

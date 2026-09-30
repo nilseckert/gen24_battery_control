@@ -83,25 +83,81 @@ class Gen24Coordinator(DataUpdateCoordinator[StorageState]):
         return raw_to_pct(raw, self.data.rate_sf)
 
     @property
-    def max_power_kw(self) -> float | None:
-        """WChaMax in kW; the rates are percentages of this value."""
-        if self.data.max_charge_power is None:
-            return None
-        return self.data.max_charge_power / 1000
+    def max_power(self) -> float | None:
+        """WChaMax in W; the rates are percentages of this value."""
+        return self.data.max_charge_power
 
-    def kw_to_rate(self, kw: float) -> int:
-        """Convert a power limit in kW to a raw rate, raising for invalid input."""
-        max_kw = self.max_power_kw
-        if not max_kw:
+    def watt_to_rate(self, watt: float) -> int:
+        """Convert a non-negative power in W to a raw rate, raising for invalid input."""
+        max_w = self.max_power
+        if not max_w:
             raise ServiceValidationError("inverter reports no maximum charge power (WChaMax)")
-        if abs(kw) > max_kw:
-            raise ServiceValidationError(f"{kw} kW exceeds the maximum of {max_kw} kW")
-        return self.pct_to_rate(kw / max_kw * 100)
+        if not 0 <= watt <= max_w:
+            raise ServiceValidationError(f"{watt} W is outside 0 to {max_w:.0f} W")
+        return self.pct_to_rate(watt / max_w * 100)
 
-    def rate_to_kw(self, raw: int) -> float | None:
-        if (max_kw := self.max_power_kw) is None:
+    def rate_to_watt(self, raw: int) -> float | None:
+        if (max_w := self.max_power) is None:
             return None
-        return round(self.rate_to_pct(raw) * max_kw / 100, 3)
+        return round(self.rate_to_pct(raw) * max_w / 100)
+
+    # The rate registers are signed: a negative discharge rate forces charging
+    # from the grid, a negative charge rate forces discharging. The entities
+    # split this into a non-negative limit and a separate grid power, so a
+    # limit shows 0 while its register is used for grid operation.
+
+    @staticmethod
+    def limit_part(raw: int) -> int:
+        return max(raw, 0)
+
+    @staticmethod
+    def grid_part(raw: int) -> int:
+        return max(-raw, 0)
+
+    def discharge_limit_changes(self, raw: int) -> dict[str, Any]:
+        """Set the discharge limit; ends charging from the grid."""
+        changes: dict[str, Any] = {"discharge_rate": raw}
+        if self.target.discharge_rate < 0 and self.target.control_mode == ControlMode.LIMIT_DISCHARGE:
+            changes["control_mode"] = ControlMode.LIMIT_BOTH
+        return changes
+
+    def charge_limit_changes(self, raw: int) -> dict[str, Any]:
+        """Set the charge limit; ends discharging to the grid."""
+        return {"charge_rate": raw}
+
+    def grid_charge_changes(self, watt: float) -> dict[str, Any]:
+        """Charge from the grid with watt W (0 ends it).
+
+        The Gen24 rejects a negative discharge rate in LIMIT_BOTH, so this
+        uses LIMIT_DISCHARGE (charging is then not limited). Ends discharging
+        to the grid.
+        """
+        if watt <= 0:
+            if self.target.discharge_rate >= 0:
+                return {}
+            return self.discharge_limit_changes(self.pct_to_rate(100))
+        changes: dict[str, Any] = {
+            "discharge_rate": -self.watt_to_rate(watt),
+            "control_mode": ControlMode.LIMIT_DISCHARGE,
+            "grid_charging": 1,
+        }
+        if self.target.charge_rate < 0:
+            changes["charge_rate"] = self.pct_to_rate(100)
+        return changes
+
+    def grid_discharge_changes(self, watt: float) -> dict[str, Any]:
+        """Discharge with watt W, surplus goes to the grid (0 ends it).
+
+        Ends charging from the grid.
+        """
+        if watt <= 0:
+            return {} if self.target.charge_rate >= 0 else {"charge_rate": self.pct_to_rate(100)}
+        changes: dict[str, Any] = {"charge_rate": -self.watt_to_rate(watt)}
+        if self.target.discharge_rate < 0:
+            changes["discharge_rate"] = self.pct_to_rate(100)
+        if not self.target.control_mode & ControlMode.LIMIT_CHARGE or changes.get("discharge_rate"):
+            changes["control_mode"] = ControlMode.LIMIT_BOTH
+        return changes
 
     def pct_to_reserve(self, pct: float) -> int:
         return pct_to_raw(pct, self.data.min_reserve_sf)

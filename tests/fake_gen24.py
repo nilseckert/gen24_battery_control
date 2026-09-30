@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from g24.errors import WriteRejected
-from g24.registers import INWRTE, OUTWRTE, to_int16
+from g24.registers import INWRTE, OUTWRTE, STORCTL_MOD, to_int16
 
 BASE = 40345
 
@@ -60,5 +60,9 @@ class FakeGen24:
             and to_int16(after[BASE + OUTWRTE]) == 0
             and to_int16(after[BASE + INWRTE]) == 0
         ):
+            raise self.reject_exc(f"write {address}={value} rejected: ExceptionResponse(3)")
+        # Observed on a Symo GEN24 10.0 (1.41.11-1): negative OutWRte is
+        # rejected while both limits are active
+        if after[BASE + STORCTL_MOD] == 3 and to_int16(after[BASE + OUTWRTE]) < 0:
             raise self.reject_exc(f"write {address}={value} rejected: ExceptionResponse(3)")
         self.regs = after

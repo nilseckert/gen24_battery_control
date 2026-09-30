@@ -1,4 +1,4 @@
-"""Numbers for the requested limits."""
+"""Numbers for the requested limits and grid operation."""
 
 from __future__ import annotations
 
@@ -26,8 +26,23 @@ PARALLEL_UPDATES = 1
 class Gen24NumberDescription(NumberEntityDescription):
     value_fn: Callable[[Gen24Coordinator], float | None]
     changes_fn: Callable[[Gen24Coordinator, float], dict[str, Any]]
-    # Symmetric range derived from the inverter (e.g. WChaMax), overrides min/max
-    range_fn: Callable[[Gen24Coordinator], float | None] | None = None
+    # Maximum derived from the inverter (WChaMax), overrides native_max_value
+    max_fn: Callable[[Gen24Coordinator], float | None] | None = None
+
+
+def _power(key: str, value_fn, changes_fn) -> Gen24NumberDescription:
+    return Gen24NumberDescription(
+        key=key,
+        translation_key=key,
+        device_class=NumberDeviceClass.POWER,
+        native_unit_of_measurement=UnitOfPower.WATT,
+        native_min_value=0,
+        native_step=1,
+        mode=NumberMode.BOX,
+        max_fn=lambda c: c.max_power,
+        value_fn=value_fn,
+        changes_fn=changes_fn,
+    )
 
 
 NUMBERS: tuple[Gen24NumberDescription, ...] = (
@@ -35,45 +50,43 @@ NUMBERS: tuple[Gen24NumberDescription, ...] = (
         key="discharge_limit",
         translation_key="discharge_limit",
         native_unit_of_measurement=PERCENTAGE,
-        native_min_value=-100,
+        native_min_value=0,
         native_max_value=100,
         native_step=1,
         mode=NumberMode.BOX,
-        value_fn=lambda c: c.rate_to_pct(c.target.discharge_rate),
-        changes_fn=lambda c, v: {"discharge_rate": c.pct_to_rate(v)},
+        value_fn=lambda c: c.rate_to_pct(c.limit_part(c.target.discharge_rate)),
+        changes_fn=lambda c, v: c.discharge_limit_changes(c.pct_to_rate(v)),
     ),
     Gen24NumberDescription(
         key="charge_limit",
         translation_key="charge_limit",
         native_unit_of_measurement=PERCENTAGE,
-        native_min_value=-100,
+        native_min_value=0,
         native_max_value=100,
         native_step=1,
         mode=NumberMode.BOX,
-        value_fn=lambda c: c.rate_to_pct(c.target.charge_rate),
-        changes_fn=lambda c, v: {"charge_rate": c.pct_to_rate(v)},
+        value_fn=lambda c: c.rate_to_pct(c.limit_part(c.target.charge_rate)),
+        changes_fn=lambda c, v: c.charge_limit_changes(c.pct_to_rate(v)),
     ),
-    Gen24NumberDescription(
-        key="discharge_power_limit",
-        translation_key="discharge_power_limit",
-        device_class=NumberDeviceClass.POWER,
-        native_unit_of_measurement=UnitOfPower.KILO_WATT,
-        native_step=0.01,
-        mode=NumberMode.BOX,
-        range_fn=lambda c: c.max_power_kw,
-        value_fn=lambda c: c.rate_to_kw(c.target.discharge_rate),
-        changes_fn=lambda c, v: {"discharge_rate": c.kw_to_rate(v)},
+    _power(
+        "discharge_power_limit",
+        lambda c: c.rate_to_watt(c.limit_part(c.target.discharge_rate)),
+        lambda c, v: c.discharge_limit_changes(c.watt_to_rate(v)),
     ),
-    Gen24NumberDescription(
-        key="charge_power_limit",
-        translation_key="charge_power_limit",
-        device_class=NumberDeviceClass.POWER,
-        native_unit_of_measurement=UnitOfPower.KILO_WATT,
-        native_step=0.01,
-        mode=NumberMode.BOX,
-        range_fn=lambda c: c.max_power_kw,
-        value_fn=lambda c: c.rate_to_kw(c.target.charge_rate),
-        changes_fn=lambda c, v: {"charge_rate": c.kw_to_rate(v)},
+    _power(
+        "charge_power_limit",
+        lambda c: c.rate_to_watt(c.limit_part(c.target.charge_rate)),
+        lambda c, v: c.charge_limit_changes(c.watt_to_rate(v)),
+    ),
+    _power(
+        "grid_charge_power",
+        lambda c: c.rate_to_watt(c.grid_part(c.target.discharge_rate)),
+        lambda c, v: c.grid_charge_changes(v),
+    ),
+    _power(
+        "grid_discharge_power",
+        lambda c: c.rate_to_watt(c.grid_part(c.target.charge_rate)),
+        lambda c, v: c.grid_discharge_changes(v),
     ),
     Gen24NumberDescription(
         key="min_reserve",
@@ -118,14 +131,8 @@ class Gen24Number(Gen24Entity, NumberEntity):
         return self.entity_description.value_fn(self.coordinator)
 
     @property
-    def native_min_value(self) -> float:
-        if (fn := self.entity_description.range_fn) and (limit := fn(self.coordinator)):
-            return -limit
-        return super().native_min_value
-
-    @property
     def native_max_value(self) -> float:
-        if (fn := self.entity_description.range_fn) and (limit := fn(self.coordinator)):
+        if (fn := self.entity_description.max_fn) and (limit := fn(self.coordinator)):
             return limit
         return super().native_max_value
 

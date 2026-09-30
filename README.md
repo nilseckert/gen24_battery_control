@@ -54,10 +54,10 @@ Gen24 Battery Control*.
 | Entität | Register | Bedeutung |
 |---|---|---|
 | `select` Steuermodus | StorCtl_Mod (40348) | `auto`, `limit_charge`, `limit_discharge`, `limit_both` |
-| `number` Entladelimit | OutWRte (40355) | % der maximalen Leistung, negativ = erzwungenes Laden |
-| `number` Ladelimit | InWRte (40356) | % der maximalen Leistung, negativ = erzwungenes Entladen |
-| `number` Entladeleistungslimit | OutWRte (40355) | dasselbe in kW, umgerechnet über WChaMax |
-| `number` Ladeleistungslimit | InWRte (40356) | dasselbe in kW, umgerechnet über WChaMax |
+| `number` Entladelimit / Entladeleistungslimit | OutWRte (40355) | in % bzw. W der maximalen Leistung |
+| `number` Ladelimit / Ladeleistungslimit | InWRte (40356) | in % bzw. W der maximalen Leistung |
+| `number` Laden aus dem Netz | OutWRte negativ | W, 0 = aus |
+| `number` Entladen ins Netz | InWRte negativ | W, 0 = aus |
 | `number` Mindestreserve | MinRsvPct (40350) | % Ladezustand |
 | `number` Rückfallzeit | InOutWRte_RvrtTms (40358) | Sekunden, 0 = aus |
 | `switch` Netzladen | ChaGriSet (40360) | Laden aus dem Netz erlauben |
@@ -66,10 +66,34 @@ Gen24 Battery Control*.
 | `sensor` Ladezustand, Ladestatus, aktive Werte | | was der Wechselrichter tatsächlich meldet |
 
 Die Adressen gelten für einen Gen24 im Modus *int + SF*. Die Integration sucht
-Modell 124 selbst in der SunSpec-Kette.
+Modell 124 selbst in der SunSpec-Kette. Die Watt-Werte werden über die vom
+Wechselrichter gemeldete maximale Ladeleistung (WChaMax) in Prozent umgerechnet.
 
 `select`, `number` und `switch` zeigen den **angeforderten** Wert, die
 `sensor`-Entitäten den **tatsächlichen**.
+
+### Laden aus dem Netz und Entladen ins Netz
+
+Der Wechselrichter kennt dafür nur negative Raten. Die Integration trennt das in
+eigene Eingaben, damit keine negativen Werte nötig sind:
+
+- **Entladen ins Netz** setzt das Ladelimit auf einen negativen Wert. Die
+  Batterie entlädt mit der angegebenen Leistung, was das Haus nicht braucht,
+  geht ins Netz. Ladelimit und Ladeleistungslimit zeigen solange 0.
+- **Laden aus dem Netz** setzt das Entladelimit auf einen negativen Wert,
+  schaltet auf `limit_discharge` und erlaubt Netzladen. Entladelimit und
+  Entladeleistungslimit zeigen solange 0.
+- 0 beendet den Netzbetrieb, die betroffene Seite geht auf 100 % zurück.
+- Die beiden Netzbetriebe schließen sich gegenseitig aus. Ein neues Lade- bzw.
+  Entladelimit beendet den Netzbetrieb der jeweiligen Seite.
+
+Getestet an einem Symo GEN24 10.0 mit Firmware 1.41.11-1:
+
+- Entladen ins Netz (negatives InWRte im Modus 3): angenommen, 2000 W stabil.
+- Negatives OutWRte im Modus 3: mit ExceptionResponse(3) abgelehnt. Im Modus 2
+  angenommen. Ob dabei tatsächlich aus dem Netz geladen wird, ist noch nicht
+  belegt (Test bei hohem PV-Überschuss war nicht aussagekräftig).
+- Laden 0 % / Entladen 0 %: angenommen und gehalten.
 
 ## Optionen
 
@@ -79,39 +103,41 @@ Modell 124 selbst in der SunSpec-Kette.
   überschrieben. Schlägt ein eigener Schreibvorgang fehl, hält die Integration
   den Sollwert in beiden Fällen fest und versucht es weiter.
 
-## Beispiel: Entladung nur bei PV-Defizit
+## Beispiele
 
-```yaml
-automation:
-  - alias: Batteriesteuerung
-    triggers:
-      - trigger: time_pattern
-        seconds: "/10"
-    actions:
-      - action: gen24_battery_control.set_setpoints
-        data:
-          control_mode: limit_both
-          discharge_limit: >
-            {% set defizit = [states('sensor.hausverbrauch') | float(0)
-                              - states('sensor.pv_gesamt') | float(0), 0] | max %}
-            {{ [defizit / states('sensor.symo_gen24_10_0_maximale_ladeleistung') | float(1) * 100, 100] | min }}
-          charge_limit: "{{ 0 if is_state('binary_sensor.ladeziel_erreicht', 'on') else 100 }}"
-```
-
-Statt in Prozent lassen sich die Limits auch in kW angeben
-(`discharge_power_limit`, `charge_power_limit`). Pro Richtung ist nur eine der
-beiden Angaben erlaubt. Die kW-Werte werden in Prozent der vom Wechselrichter
-gemeldeten maximalen Ladeleistung (WChaMax) umgerechnet:
+Entladung nur bei PV-Defizit:
 
 ```yaml
 action: gen24_battery_control.set_setpoints
 data:
   control_mode: limit_both
-  discharge_power_limit: "{{ [states('sensor.hausverbrauch') | float(0) / 1000 - states('sensor.pv_gesamt') | float(0) / 1000, 0.1] | max }}"
-  charge_power_limit: 0
+  discharge_power_limit: "{{ [states('sensor.hausverbrauch') | float(0) - states('sensor.pv_gesamt') | float(0), 0] | max }}"
+  charge_limit: "{{ 0 if is_state('binary_sensor.ladeziel_erreicht', 'on') else 100 }}"
 ```
 
+Mit 3000 W ins Netz entladen bzw. aus dem Netz laden, und wieder beenden:
+
+```yaml
+action: gen24_battery_control.set_setpoints
+data:
+  grid_discharge_power: 3000   # grid_charge_power: 3000 zum Laden aus dem Netz
+```
+
+```yaml
+action: gen24_battery_control.set_setpoints
+data:
+  grid_discharge_power: 0
+```
+
+Pro Seite ist nur eine Angabe erlaubt: Entladeseite `discharge_limit` (%),
+`discharge_power_limit` (W) oder `grid_charge_power` (W), Ladeseite
+`charge_limit` (%), `charge_power_limit` (W) oder `grid_discharge_power` (W).
+
 Soll die Batterie ruhen, setze `discharge_limit: 0` und `charge_limit: 0`.
+
+Automationen, die regelmäßig Lade- und Entladelimit setzen, beenden damit
+einen laufenden Netzbetrieb. Solche Automationen sollten pausieren, solange
+„Laden aus dem Netz“ oder „Entladen ins Netz“ größer 0 ist.
 
 ## Entwicklung
 
